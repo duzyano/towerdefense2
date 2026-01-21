@@ -3,22 +3,64 @@
             const canvas = document.getElementById('mapCanvas');
             const ctx = canvas.getContext('2d');
             const gridSize = 40;
-            const waypoints = [
-                { x: 80, y: 560 },
-                { x: 80, y: 240 },
-                { x: 240, y: 240 },
-                { x: 240, y: 560 },
-                { x: 400, y: 560 },
-                { x: 400, y: 240 },
-                { x: 560, y: 240 },
-                { x: 560, y: 560 },
-                { x: 680, y: 560 },
-                { x: 680, y: 340 },
-                { x: 680, y: 160 },
-                { x: 100, y: 160 },
-                { x: 100, y: 100 },
-                { x: 600, y: 100 },
+            
+            // 3 verschillende kaarten met waypoints
+            const mapConfigs = [
+                { // Map 1: U-vormig (origineel)
+                    name: 'Map 1',
+                    waypoints: [
+                        { x: 80, y: 560 },
+                        { x: 80, y: 240 },
+                        { x: 240, y: 240 },
+                        { x: 240, y: 560 },
+                        { x: 400, y: 560 },
+                        { x: 400, y: 240 },
+                        { x: 560, y: 240 },
+                        { x: 560, y: 560 },
+                        { x: 680, y: 560 },
+                        { x: 680, y: 340 },
+                        { x: 680, y: 160 },
+                        { x: 100, y: 160 },
+                        { x: 100, y: 100 },
+                        { x: 600, y: 100 },
+                    ]
+                },
+                { // Map 2: Spiraal
+                    name: 'Map 2',
+                    waypoints: [
+                        { x: 200, y: 600 },
+                        { x: 200, y: 200 },
+                        { x: 600, y: 200 },
+                        { x: 600, y: 500 },
+                        { x: 300, y: 500 },
+                        { x: 300, y: 300 },
+                        { x: 500, y: 300 },
+                        { x: 500, y: 400 },
+                        { x: 400, y: 400 },
+                        { x: 400, y: 150 },
+                    ]
+                },
+                { // Map 3: Zigzag
+                    name: 'Map 3',
+                    waypoints: [
+                        { x: 100, y: 600 },
+                        { x: 100, y: 300 },
+                        { x: 400, y: 300 },
+                        { x: 400, y: 150 },
+                        { x: 700, y: 150 },
+                        { x: 700, y: 400 },
+                        { x: 350, y: 400 },
+                        { x: 350, y: 600 },
+                        { x: 650, y: 600 },
+                        { x: 650, y: 100 },
+                    ]
+                }
             ];
+            
+            // Kies willekeurig een kaart
+            const selectedMapIndex = Math.floor(Math.random() * mapConfigs.length);
+            const currentMap = mapConfigs[selectedMapIndex];
+            const waypoints = currentMap.waypoints.map(p => ({ x: p.x, y: p.y })); // Clone waypoints
 
             const samplesPerSegment = 12;
 
@@ -91,11 +133,16 @@
             }
 
             function drawSnow() {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
                 snowflakes.forEach(flake => {
                     ctx.beginPath();
-                    ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+                    ctx.arc(flake.x, flake.y, flake.radius + 0.5, 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    // glow effect voor zichtbaarheid
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
 
                     flake.y += flake.speed;
                     flake.x += flake.drift;
@@ -133,21 +180,48 @@
             }
 
             function drawBackground() {
-                // Sneeuw op de grond
+                // Sneeuw op de grond (basis achtergrond)
+                ctx.fillStyle = '#e8f4f8';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Donkerdere sneeuwlaag onderaan
                 ctx.fillStyle = '#ffffff';
-                for (let i = 0; i < 15; i++) {
-                    const x = (i * 60 + Math.sin(i) * 20) % canvas.width;
-                    const y = canvas.height - 20 - Math.random() * 10;
+                for (let i = 0; i < 20; i++) {
+                    const x = (i * 100 + Math.sin(i) * 30) % canvas.width;
+                    const y = canvas.height - 40 - Math.random() * 20;
                     ctx.beginPath();
-                    ctx.arc(x, y, 15 + Math.random() * 10, 0, Math.PI * 2);
+                    ctx.arc(x, y, 20 + Math.random() * 15, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                // Kerstbomen rondom
-                drawChristmasTree(700, 120, 35);
-                drawChristmasTree(650, 450, 25);
-                drawChristmasTree(150, 500, 28);
-                drawChristmasTree(900,80, 32);
+                // Helper: teken boom alleen als hij niet op het pad staat
+                function safeTreeDraw(x, y, size) {
+                    const threshold = Math.max(24, size * 0.9);
+                    if (window.isOnPath && window.isOnPath(x, y, threshold)) return;
+                    drawChristmasTree(x, y, size);
+                }
+
+                // Kerstbomen rondom - veel meer, maar gecontroleerd
+                safeTreeDraw(100, 200, 40);
+                safeTreeDraw(200, 300, 35);
+                safeTreeDraw(350, 150, 38);
+                safeTreeDraw(500, 280, 42);
+                safeTreeDraw(700, 120, 35);
+                safeTreeDraw(900, 220, 40);
+                safeTreeDraw(1100, 150, 38);
+                safeTreeDraw(1350, 250, 42);
+                safeTreeDraw(1550, 180, 36);
+                safeTreeDraw(1750, 300, 39);
+
+                // Extra kleine bomen op achtergrond
+                safeTreeDraw(150, 450, 28);
+                safeTreeDraw(400, 500, 25);
+                safeTreeDraw(650, 450, 25);
+                safeTreeDraw(950, 520, 26);
+                safeTreeDraw(1200, 480, 27);
+                safeTreeDraw(1500, 500, 24);
+                safeTreeDraw(1800, 450, 28);
+                safeTreeDraw(1900, 80, 32);
             }
 
             function drawPath() {
@@ -192,9 +266,11 @@
                     ctx.fill();
                     ctx.stroke();
                 }
-
-              
-                
+                // Draw a glowing start-star at the beginning of the path
+                if (pathPoints.length > 0) {
+                    const start = pathPoints[0];
+                    drawStartStar(ctx, start.x, start.y, 28);
+                }
 
                 // Draw Christmas tree at end (goal)
                 const endPoint = pathPoints[pathPoints.length - 1];
@@ -267,6 +343,61 @@
                         ctx.stroke();
                     }
                 }
+
+                ctx.restore();
+            }
+
+            function drawStartStar(ctx, x, y, size) {
+                ctx.save();
+                // outer glow
+                ctx.shadowColor = 'rgba(255,215,0,0.9)';
+                ctx.shadowBlur = 20;
+
+                // star body
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                const outer = size * 0.9;
+                const inner = size * 0.35;
+                for (let i = 0; i < 10; i++) {
+                    const r = (i % 2 === 0) ? outer : inner;
+                    const a = (i * Math.PI) / 5 - Math.PI / 2;
+                    const sx = x + Math.cos(a) * r;
+                    const sy = y + Math.sin(a) * r;
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // bright core
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.22, 0, Math.PI * 2);
+                ctx.fill();
+
+                // subtle stroke
+                ctx.shadowBlur = 0;
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#ffed4e';
+                ctx.stroke();
+
+                // tiny sparkles
+                for (let i = 0; i < 6; i++) {
+                    const ang = (i / 6) * Math.PI * 2 + Math.random() * 0.4;
+                    const sx = x + Math.cos(ang) * (outer + 6 + Math.random() * 6);
+                    const sy = y + Math.sin(ang) * (outer + 6 + Math.random() * 6);
+                    ctx.beginPath();
+                    ctx.fillStyle = 'rgba(255, 240, 180, 0.85)';
+                    ctx.arc(sx, sy, 1 + Math.random() * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // small snow oval beneath
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.beginPath();
+                ctx.ellipse(x, y + size * 0.6, size * 0.8, size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
 
                 ctx.restore();
             }
