@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Towers demo</title>
+    <link rel="stylesheet" href="tower_map/style/tower.css">
+</head>
+<body>
+    <h1>Towers demo</h1>
+    <div class="controls">
+        <button id="startBtn">Start</button>
+        <button id="resetBtn">Reset</button>
+    </div>
+    <canvas id="mapCanvas" width="800" height="600"></canvas>
+
+    <script src="path_van_map/.js/map.js"></script>
+    <script src="tower_map/.js/towers.js"></script>
+    <script>
+        // If map.js draws the map, call drawTowers after; if it doesn't, we can overlay during its loop.
+        // We'll patch a small hook: poll for drawTowers and call it after each frame by wrapping requestAnimationFrame.
+        (function(){
+            const originalRAF = window.requestAnimationFrame;
+            let last = 0;
+            window.requestAnimationFrame = function(cb){
+                return originalRAF(function(ts){
+                    const dt = last ? (ts - last) / 1000 : 0;
+                    last = ts;
+                    // check game over before callback
+                    if (window.gameOver) {
+                        // just skip loop updates, let user reset
+                        return;
+                    }
+                    // let the original callback run (map draw)
+                    cb(ts);
+                    // update towers (create + move projectiles)
+                    if (window.towerUpdate) window.towerUpdate(dt);
+                    // call overlay draw if available
+                    const canvas = document.getElementById('mapCanvas');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (window.drawTowers) window.drawTowers(ctx);
+                        if (window.drawLasers) window.drawLasers(ctx);
+                        // draw game over overlay
+                        if (window.gameOver) {
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 32px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+                            ctx.font = '16px Arial';
+                            ctx.fillText('Je bent klaar! Klik Reset om opnieuw te spelen.', canvas.width / 2, canvas.height / 2 + 20);
+                            ctx.restore();
+                        }
+                    }
+                });
+            };
+        })();
+    </script>
+</body>
+</html>
