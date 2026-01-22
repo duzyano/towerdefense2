@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TowerDefense.Demo Enemies/Waves</title>
+    <style>
+      body {
+        margin: 0;
+        background: #0f1220;
+        color: #fff;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+          Arial;
+      }
+      .wrap {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        gap: 16px;
+      }
+      canvas {
+        background: #1116;
+        border: 1px solid #333;
+        border-radius: 8px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+      }
+      button {
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 0;
+        cursor: pointer;
+        background: #4f8cff;
+        color: #fff;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <canvas id="c" width="800" height="480"></canvas>
+      <div class="controls">
+        <button id="start">Start Engine</button>
+        <button id="wave">Start Volgende Wave</button>
+      </div>
+    </div>
+
+    <script type="module">
+      import { Engine } from "./engine.js";
+
+      const canvas = document.getElementById("c");
+      const engine = new Engine(canvas);
+
+      document
+        .getElementById("start")
+        .addEventListener("click", () => engine.start());
+      document
+        .getElementById("wave")
+        .addEventListener("click", () => engine.waveManager.startNextWave());
+    </script>
+  </body>
+</html>
