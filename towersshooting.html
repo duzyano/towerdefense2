@@ -1,63 +1,426 @@
 <!DOCTYPE html>
 <html lang="nl">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Towers demo</title>
-    <link rel="stylesheet" href="tower_map/style/tower.css">
-</head>
-<body>
-    <h1>kerstdefence</h1>
-    <div class="controls">
+    <link rel="stylesheet" href="tower_map/style/tower.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #0f1220;
+        display: grid;
+        place-items: center;
+      }
+      canvas {
+        display: block;
+        background: #1116;
+        border: 1px solid #333;
+        border-radius: 8px;
+      }
+
+      /* Top header bar */
+      .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        background: rgba(18, 22, 33, 0.75);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid #222;
+        z-index: 100;
+      }
+      .topbar .brand {
+        color: #fff;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      .topbar .timer {
+        color: #fff;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .topbar .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .topbar .status {
+        color: #fff;
+        opacity: 0.9;
+        margin-left: 12px;
+      }
+      .topbar .coins {
+        color: #fff;
+        opacity: 0.95;
+        margin-left: 12px;
+        font-weight: 600;
+      }
+      .topbar .nextwave {
+        color: #ffd866;
+        margin-left: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .topbar button {
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: 1px solid #2a2f3a;
+        background: #ffffff;
+        color: #0f1220;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .topbar button:hover {
+        filter: brightness(0.95);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">Kerstdefence</div>
+      <div class="timer" id="timerLabel">00:00</div>
+      <div class="actions">
         <button id="startBtn">Start</button>
+        <button id="pauseBtn">Pause</button>
         <button id="resetBtn">Reset</button>
+        <div class="status">
+          Wave <span id="waveLabel">0</span> · Enemies
+          <span id="enemyCount">0</span>
+        </div>
+        <div class="coins">Coins <span id="coinsLabel">0</span></div>
+        <div class="nextwave" id="nextWaveLabel"></div>
+      </div>
     </div>
     <canvas id="mapCanvas" width="1920" height="1200"></canvas>
 
     <script src="path_van_map/.js/map.js"></script>
-    <script src="tower_map/.js/towers.js"></script>
     <script>
-        // If map.js draws the map, call drawTowers after; if it doesn't, we can overlay during its loop.
-        // We'll patch a small hook: poll for drawTowers and call it after each frame by wrapping requestAnimationFrame.
-        (function(){
-            const originalRAF = window.requestAnimationFrame;
-            let last = 0;
-            window.requestAnimationFrame = function(cb){
-                return originalRAF(function(ts){
-                    const dt = last ? (ts - last) / 1000 : 0;
-                    last = ts;
-                    // check game over before callback
-                    if (window.gameOver) {
-                        // just skip loop updates, let user reset
-                        return;
-                    }
-                    // let the original callback run (map draw)
-                    cb(ts);
-                    // update towers (create + move projectiles)
-                    if (window.towerUpdate) window.towerUpdate(dt);
-                    // call overlay draw if available
-                    const canvas = document.getElementById('mapCanvas');
-                    if (canvas) {
-                        const ctx = canvas.getContext('2d');
-                        if (window.drawTowers) window.drawTowers(ctx);
-                        if (window.drawLasers) window.drawLasers(ctx);
-                        // draw game over overlay
-                        if (window.gameOver) {
-                            ctx.save();
-                            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 32px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
-                            ctx.font = '16px Arial';
-                            ctx.fillText('Je bent klaar! Klik Reset om opnieuw te spelen.', canvas.width / 2, canvas.height / 2 + 20);
-                            ctx.restore();
-                        }
-                    }
-                });
-            };
-        })();
+      // Responsive canvas sizing with HiDPI support
+      (function () {
+        const canvas = document.getElementById("mapCanvas");
+        const ctx = canvas.getContext("2d");
+        function resize() {
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          canvas.style.width = w + "px";
+          canvas.style.height = h + "px";
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+
+          // Draw using CSS pixel coordinates; scale to device pixels
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          if (window.recomputePathTransform) window.recomputePathTransform();
+        }
+        window.addEventListener("resize", resize);
+        resize();
+      })();
     </script>
-</body>
+    <script src="tower_map/.js/effects.js"></script>
+    <script src="tower_map/.js/tower-defs.js"></script>
+    <script src="tower_map/.js/towers.js"></script>
+    <script src="tower_map/.js/enemy-attack.js"></script>
+    <script src="ui/hud.js"></script>
+    <!-- Bridge: wire game_core enemies and waves to this map -->
+    <script type="module">
+      import { Enemy } from "./game_core/enemy.js";
+      import { WaveManager } from "./game_core/waves.js";
+
+      // Globals used by towers.js and overlay
+      window.enemies = [];
+      window.deadGhosts = [];
+      const waveManager = new WaveManager();
+      window.waveManager = waveManager;
+      window.baseHP = 20;
+      window.lives = 3; // sync with tower menu initial display
+      window.gameOver = false;
+      window.paused = false;
+      window.elapsedTime = 0;
+      const REWARDS = {
+        grunt: 15,
+        fast: 20,
+        tank: 30,
+        brute: 45,
+        assassin: 35,
+        boss: 200,
+      };
+      // Auto-wave settings
+      window.autoWave = true; // start next wave automatically
+      window.waveGap = 1.2; // seconds between waves
+      window.waveCountdown = -1; // inactive when < 0
+     
+      window.waveCoinTargets = [
+        180, // after wave 1 (more forgiving)
+        240, // after wave 2
+        300, // after wave 3
+        360, // after wave 4
+        420, // after wave 5
+        480, // after wave 6
+        540, // after wave 7
+        620, // after wave 8
+        700, // after wave 9
+        780, // after wave 10
+        860, // after wave 11
+        940, // after wave 12
+        1020, // after wave 13
+        1100, // after wave 14
+        1200, // after boss wave
+      ];
+      window.formatTime = (t) => {
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+      };
+
+      // Start next wave (can be bound to UI)
+      window.startNextWave = () => waveManager.startNextWave();
+
+      // Engine update integrated into the RAF wrapper below
+      window.engineUpdate = (dt) => {
+        waveManager.update(dt, window.enemies);
+        for (const e of window.enemies) {
+          e.update(dt);
+          if (e.reachedBase && !e.dead) {
+            window.baseHP -= e.damage;
+            window.lives = Math.max(0, (window.lives || 0) - e.damage);
+            e.dead = true;
+            if (window.baseHP <= 0 || window.lives <= 0) window.gameOver = true;
+          }
+
+          if (e.hp <= 0 && !e.dead) {
+            e.dead = true;
+          }
+          // award coins once when an enemy is killed by towers
+          if (!e.reachedBase && e.dead && !e.rewardGiven) {
+            const amt = e.bounty != null ? e.bounty : REWARDS[e.type] || 5;
+            if (window.addCoins) window.addCoins(amt);
+            e.rewardGiven = true;
+            // spawn ghost for fade-out visual
+            if (Array.isArray(window.deadGhosts) && !e.ghostSpawned) {
+              window.deadGhosts.push({
+                x: e.x,
+                y: e.y,
+                color: e.color || "#fff",
+                fadeInit: 0.6,
+                fade: 0.6,
+                r: 10,
+              });
+              e.ghostSpawned = true;
+            }
+          }
+        }
+        // remove dead enemies immediately; ghosts render the fade
+        window.enemies = window.enemies.filter((e) => !e.dead);
+        // update and clean up ghosts
+        if (Array.isArray(window.deadGhosts)) {
+          for (const g of window.deadGhosts) g.fade -= dt;
+          window.deadGhosts = window.deadGhosts.filter((g) => g.fade > 0);
+        }
+
+        // Auto-start next wave when previous wave finished and no enemies remain
+        if (
+          window.autoWave &&
+          !window.gameOver &&
+          !waveManager.spawning &&
+          waveManager.currentWave &&
+          (!window.enemies || window.enemies.length === 0)
+        ) {
+          if (waveManager.hasNext()) {
+            if (window.waveCountdown < 0) window.waveCountdown = window.waveGap;
+          }
+        } else {
+          // conditions not met, keep countdown inactive
+          window.waveCountdown = -1;
+        }
+        if (window.waveCountdown >= 0) {
+          window.waveCountdown -= dt;
+          if (window.waveCountdown <= 0) {
+            const started = waveManager.startNextWave();
+            window.waveCountdown = -1;
+            if (started && waveManager.currentWave) {
+              // Optional: spawn one immediately for feedback
+              window.enemies.push(new Enemy(waveManager.currentWave.type));
+            }
+          }
+        }
+      };
+
+      // Basic overlay to draw enemies on top of the map
+      window.drawOverlay = (ctx) => {
+        for (const e of window.enemies) {
+          ctx.save();
+          ctx.fillStyle = e.color || "#fff";
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+          // hp bar
+          const w = 24,
+            h = 4;
+          const px = e.x - w / 2,
+            py = e.y - 18;
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.fillRect(px, py, w, h);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(
+            px + 1,
+            py + 1,
+            Math.max(0, (w - 2) * (e.hp / e.maxHp)),
+            h - 2
+          );
+          ctx.restore();
+        }
+        // draw fading ghosts
+        if (Array.isArray(window.deadGhosts)) {
+          for (const g of window.deadGhosts) {
+            const alpha = Math.max(0, g.fade / g.fadeInit);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = g.color;
+            ctx.beginPath();
+            ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      };
+
+      // Bind UI buttons (if present) to waves
+      const startBtn = document.getElementById("startBtn");
+      if (startBtn)
+        startBtn.addEventListener("click", () => {
+          window.paused = false;
+          const started = waveManager.startNextWave();
+          if (started && waveManager.currentWave) {
+            // Spawn one immediately for instant feedback
+            window.enemies.push(new Enemy(waveManager.currentWave.type));
+          }
+        });
+      const pauseBtn = document.getElementById("pauseBtn");
+      if (pauseBtn) {
+        pauseBtn.addEventListener("click", () => {
+          window.paused = !window.paused;
+          pauseBtn.textContent = window.paused ? "Resume" : "Pause";
+        });
+      }
+      const resetBtn = document.getElementById("resetBtn");
+      if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+          window.elapsedTime = 0;
+          window.paused = false;
+          window.lives = 3;
+          const lbl = document.getElementById("timerLabel");
+          if (lbl) lbl.textContent = window.formatTime(window.elapsedTime);
+          const liveEl = document.getElementById("liveCount");
+          if (liveEl) liveEl.textContent = window.lives;
+        });
+      }
+    </script>
+    <script>
+      (function () {
+        const originalRAF = window.requestAnimationFrame;
+        let last = 0;
+        window.requestAnimationFrame = function (cb) {
+          return originalRAF(function (ts) {
+            const dt = last ? (ts - last) / 1000 : 0;
+            last = ts;
+
+            if (window.gameOver) {
+              // just skip loop updates, let user reset
+              return;
+            }
+            // let the original callback run (map draw)
+            cb(ts);
+            // core enemy/wave update from game_core
+            if (!window.paused && window.engineUpdate) window.engineUpdate(dt);
+            // update towers (create + move projectiles)
+            if (!window.paused && window.towerUpdate) window.towerUpdate(dt);
+            // enemies shoot back at towers
+            if (!window.paused && window.enemyAttackUpdate)
+              window.enemyAttackUpdate(dt);
+            // delegate HUD updates to module
+            if (window.hudUpdate) window.hudUpdate(dt);
+            // call overlay draw if available
+            const canvas = document.getElementById("mapCanvas");
+            if (canvas) {
+              const ctx = canvas.getContext("2d");
+              // Ensure enemies render on top even if map didn't call overlay yet
+              if (window.enemies && window.enemies.length) {
+                for (const e of window.enemies) {
+                  ctx.save();
+                  ctx.fillStyle = e.color || "#fff";
+                  ctx.beginPath();
+                  ctx.arc(e.x, e.y, 10, 0, Math.PI * 2);
+                  ctx.fill();
+                  // hp bar
+                  const w = 24,
+                    h = 4;
+                  const px = e.x - w / 2,
+                    py = e.y - 18;
+                  ctx.fillStyle = "rgba(0,0,0,0.6)";
+                  ctx.fillRect(px, py, w, h);
+                  ctx.fillStyle = "#fff";
+                  ctx.fillRect(
+                    px + 1,
+                    py + 1,
+                    Math.max(0, (w - 2) * (e.hp / e.maxHp)),
+                    h - 2
+                  );
+                  ctx.restore();
+                }
+              }
+              // draw ghosts
+              if (window.deadGhosts && window.deadGhosts.length) {
+                for (const g of window.deadGhosts) {
+                  const alpha = Math.max(0, g.fade / g.fadeInit);
+                  ctx.save();
+                  ctx.globalAlpha = alpha;
+                  ctx.fillStyle = g.color;
+                  ctx.beginPath();
+                  ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.restore();
+                }
+              }
+              if (window.drawTowers) window.drawTowers(ctx);
+              if (window.drawLasers) window.drawLasers(ctx);
+              if (window.drawEnemyBeams) window.drawEnemyBeams(ctx);
+              if (window.drawImpacts) window.drawImpacts(ctx);
+              // draw game over overlay
+              if (window.gameOver) {
+                ctx.save();
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 32px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(
+                  "GAME OVER",
+                  canvas.width / 2,
+                  canvas.height / 2 - 20
+                );
+                ctx.font = "16px Arial";
+                ctx.fillText(
+                  "Je bent klaar! Klik Reset om opnieuw te spelen.",
+                  canvas.width / 2,
+                  canvas.height / 2 + 20
+                );
+                ctx.restore();
+              }
+            }
+          });
+        };
+      })();
+    </script>
+  </body>
 </html>
