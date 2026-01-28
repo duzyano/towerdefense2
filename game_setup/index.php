@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="nl">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>TowerDefense • Startscherm</title>
 	<link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
 	<main class="screen">
 		<section class="brand">
@@ -95,7 +97,7 @@
 		</form>
 	</dialog>
 
-	
+
 	<dialog class="modal" id="howto-modal">
 		<article>
 			<header>
@@ -104,7 +106,7 @@
 			<p>
 				Dit is het start- en instellingen-scherm voor TowerDefense 2.
 				Kies je voorkeuren via Instellingen en druk op "Start spel".
-				
+
 			</p>
 			<menu class="actions">
 				<button class="btn" id="btn-howto-close">Sluiten</button>
@@ -126,5 +128,5 @@
 
 	<script type="module" src="main.js"></script>
 </body>
+
 </html>
- 
